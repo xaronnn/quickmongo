@@ -1,4 +1,5 @@
 const _ = require("lodash");
+const Error = require("./Error");
 
 class Util {
 
@@ -58,6 +59,45 @@ class Util {
             arb = _.sortBy(arb, ops.sort).reverse();
         }
         return arb;
+    }
+
+    /**
+     * Data resolver
+     * @param {string} key Data key
+     * @param data Data
+     * @param value value
+     */
+    static setData(key, data, value) {
+        let parsed = this.parseKey(key);
+        if (typeof data === "object" && parsed.target) {
+            return _.set(data, parsed.target, value);
+        } else if (parsed.target) throw new Error("Cannot target non-object.", "SyntaxError");
+        return data;
+    }
+
+    /**
+     * Data resolver
+     * @param {string} key Data key
+     * @param data Data
+     * @param value value
+     */
+    static unsetData(key, data) {
+        let parsed = this.parseKey(key);
+        if (typeof data === "object" && parsed.target) {
+            _.unset(data, parsed.target);
+        } else if (parsed.target) throw new Error("Cannot target non-object.", "SyntaxError");
+        return;
+    }
+
+    /**
+     * Data resolver
+     * @param {string} key Key
+     * @param data Data
+     */
+    static getData(key, data) {
+        let parsed = this.parseKey(key);
+        if (parsed.target) data = _.get(data, parsed.target);
+        return data;
     }
 }
 

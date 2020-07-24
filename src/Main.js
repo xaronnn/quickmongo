@@ -36,13 +36,16 @@ class Database extends Base {
     async set(key, value) {
         if (!Util.isKey(key)) throw new Error("Invalid key specified!", "KeyError");
         if (!Util.isValue(value)) throw new Error("Invalid value specified!", "ValueError");
+        let parsed = Util.parseKey(key);
         let raw = await this.schema.findOne({
-            ID: key
+            ID: parsed.key
         });
         if (!raw) {
+            let nb = value;
+            if (parsed.target) nb = Util.setData(key, {}, value);
             let data = new this.schema({
                 ID: key,
-                data: value
+                data: nb
             });
             await data.save()
                 .catch(e => {
@@ -50,7 +53,10 @@ class Database extends Base {
                 });
             return data.data;
         } else {
-            raw.data = value;
+            let nb = value;
+            if (parsed.target && typeof nb === "object") nb = Util.setData(key, raw, value);
+            else if (parsed.target) throw new Error("Cannot target non-object.", "TargetError");
+            raw.data = nb;
             await raw.save()
                 .catch(e => {
                     return this.emit("error", e);
@@ -66,11 +72,21 @@ class Database extends Base {
      */
     async delete(key) {
         if (!Util.isKey(key)) throw new Error("Invalid key specified!", "KeyError");
-        let data = await this.schema.findOneAndDelete({ ID: key })
-            .catch(e => {
-                return this.emit("error", e);
-            });
-        return data;
+        let parsed = Util.parseKey(key);
+        let fetched = await this.get(parsed.key);
+        if (fetched === null) return false;
+
+        if (parsed.target && typeof fetched === "object") {
+            let nb = fetched;
+            Util.unsetData(key, nb);
+            return !!(await this.set(parsed.key, nb));
+        } else {
+            let data = await this.schema.findOneAndDelete({ ID: key })
+                .catch(e => {
+                    return this.emit("error", e);
+                });
+            return !!data;
+        }
     }
 
     /**
@@ -100,10 +116,15 @@ class Database extends Base {
      */
     async get(key) {
         if (!Util.isKey(key)) throw new Error("Invalid key specified!", "KeyError");
-        let get = await this.schema.findOne({ ID: key })
+        let parsed = Util.parseKey(key);
+        let get = await this.schema.findOne({ ID: parsed.key })
             .catch(e => {
                 return this.emit("error", e);
             });
+        if (get && typeof get.data === "object" && parsed.target) {
+            fetched = Util.getData(key, get.data);
+            return fetched;
+        }
         if (!get) return null;
         return get.data;
     }
@@ -160,7 +181,7 @@ class Database extends Base {
         switch(operator) {
             case "add":
             case "+":
-                let add = await this.schema.findOne({ ID: key });
+                let add = await this.get(key);
                 if (!add) {
                     return this.set(key, value);
                 } else {
@@ -172,7 +193,7 @@ class Database extends Base {
             case "subtract":
             case "sub":
             case "-":
-                let less = await this.schema.findOne({ ID: key });
+                let less = await this.get(key);
                 if (!less) {
                     return this.set(key, value);
                 } else {
@@ -184,7 +205,7 @@ class Database extends Base {
             case "multiply":
             case "mul":
             case "*":
-                let mul = await this.schema.findOne({ ID: key });
+                let mul = await this.get(key);
                 if (!mul) {
                     return this.set(key, value);
                 } else {
@@ -196,7 +217,7 @@ class Database extends Base {
             case "divide":
             case "div":
             case "/":
-                let div = await this.schema.findOne({ ID: key });
+                let div = await this.get(key);
                 if (!div) {
                     return this.set(key, value);
                 } else {
@@ -330,7 +351,7 @@ class Database extends Base {
      */
     async _write() {
         let start = Date.now();
-        await this.set("LQ==", Buffer.from(start.tostring()).tostring("base64"));
+        await this.set("LQ==", Buffer.from(start.toString()).toString("base64"));
         return Date.now() - start;
     }
 
@@ -359,6 +380,18 @@ class Database extends Base {
         if (!key || typeof key !== "string") throw new Error(`Expected key to be a string, received ${typeof key}`);
         let all = await this.all();
         return Util.sort(key, all, ops);
+    }
+
+    /**
+     * Resolves data type
+     * @param {string} key key
+     */
+    async type(key) {
+        if (!Util.isKey(key)) throw new Error("Invalid Key!", "KeyError");
+        let fetched = await this.get(key);
+        if (fetched === null) return null;
+        if (Array.isArray(fetched)) return "array";
+        return typeof fetched;
     }
 
 }
