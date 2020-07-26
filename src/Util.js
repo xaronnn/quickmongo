@@ -83,10 +83,11 @@ class Util {
      */
     static unsetData(key, data) {
         let parsed = this.parseKey(key);
+        let item = data;
         if (typeof data === "object" && parsed.target) {
-            _.unset(data, parsed.target);
+            _.unset(item, parsed.target);
         } else if (parsed.target) throw new Error("Cannot target non-object.", "SyntaxError");
-        return;
+        return item;
     }
 
     /**

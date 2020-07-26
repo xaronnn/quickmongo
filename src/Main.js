@@ -44,23 +44,17 @@ class Database extends Base {
             let nb = value;
             if (parsed.target) nb = Util.setData(key, {}, value);
             let data = new this.schema({
-                ID: key,
+                ID: parsed.key,
                 data: nb
             });
-            await data.save()
-                .catch(e => {
-                    return this.emit("error", e);
-                });
-            return data.data;
+            await data.save();
+            return data;
         } else {
             let nb = value;
-            if (parsed.target && typeof nb === "object") nb = Util.setData(key, raw, value);
+            if (parsed.target && typeof raw.data === "object") nb = Util.setData(key, raw.data, value);
             else if (parsed.target) throw new Error("Cannot target non-object.", "TargetError");
             raw.data = nb;
-            await raw.save()
-                .catch(e => {
-                    return this.emit("error", e);
-                });
+            await raw.save();
             return raw.data;
         }
     }
@@ -77,11 +71,10 @@ class Database extends Base {
         if (fetched === null) return false;
 
         if (parsed.target && typeof fetched === "object") {
-            let nb = fetched;
-            Util.unsetData(key, nb);
+            let nb = Util.unsetData(key, nb);
             return !!(await this.set(parsed.key, nb));
         } else {
-            let data = await this.schema.findOneAndDelete({ ID: key })
+            let data = await this.schema.findOneAndDelete({ ID: parsed.key })
                 .catch(e => {
                     return this.emit("error", e);
                 });
@@ -122,7 +115,7 @@ class Database extends Base {
                 return this.emit("error", e);
             });
         if (get && typeof get.data === "object" && parsed.target) {
-            fetched = Util.getData(key, get.data);
+            let fetched = Util.getData(key, get.data);
             return fetched;
         }
         if (!get) return null;
