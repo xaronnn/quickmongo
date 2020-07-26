@@ -49,7 +49,7 @@ class Base extends EventEmitter {
      * @private
      */
     _create() {
-        this.emit("Creating database connection...");
+        this.emit("debug", "Creating database connection...");
         mongoose.connect(this.dbURL, {
             useNewUrlParser: true,
             useUnifiedTopology: true
