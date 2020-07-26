@@ -128,7 +128,7 @@ class Database extends Base {
      * @example db.fetch("foo").then(console.log);
      */
     async fetch(key) {
-        return this.get(key);
+        return await this.get(key);
     }
 
     /**
